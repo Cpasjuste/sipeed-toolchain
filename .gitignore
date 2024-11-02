@@ -1,5 +1,5 @@
 *~
 .#*
 .swp
-buildroot-sipeed/package/middleware-sg200x/src/
-buildroot-sipeed/package/osdrv-sg200x/src/
+package/middleware-sg200x/src/
+package/osdrv-sg200x/src/
