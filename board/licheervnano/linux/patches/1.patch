@@ -10,10 +10,10 @@ index 6ddb7382c..000000000
 \ No newline at end of file
 diff --git a/arch/riscv/boot/dts/cvitek/licheervnano.dts b/arch/riscv/boot/dts/cvitek/licheervnano.dts
 new file mode 100644
-index 000000000..3a567c791
+index 000000000..21dfa3447
 --- /dev/null
 +++ b/arch/riscv/boot/dts/cvitek/licheervnano.dts
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,225 @@
 +/dts-v1/;
 +#include "soph_base_riscv.dtsi"
 +#include "soph_asic_qfn.dtsi"
@@ -123,6 +123,39 @@ index 000000000..3a567c791
 +	};
 +};
 +
++&spi0 {
++        status = "okay";
++};
++
++&spi1 {
++        status = "okay";
++};
++
++&spi2 {
++        status = "okay";
++
++        // /delete-node/ spidev@0;
++        st7789v: st7789v@0{
++                compatible = "sitronix,st7789";
++                reg = <0>;
++                status = "disabled";
++                spi-max-frequency = <80000000>;
++                spi-cpol;
++                spi-cpha;
++                rotate = <0>;
++                fps = <60>;
++                rgb;
++                buswidth = <8>;
++                dc = <&porta 26 GPIO_ACTIVE_HIGH>;
++                reset = <&porta 27 GPIO_ACTIVE_LOW>;
++                debug = <1>;
++        };
++};
++
++&spi3 {
++	status = "okay";
++};
++
 +&dac {
 +        status = "okay";
 +        /delete-property/ mute-gpio-r;
@@ -143,6 +176,21 @@ index 000000000..3a567c791
 +/ {
 +        model = "LicheeRv Nano";
 +
++        spi4: spi4@gpio {
++                compatible = "spi-gpio";
++                sck-gpio = <&porta 22 0>;
++                miso-gpio = <&porta 23 0>;
++                mosi-gpio = <&porta 25 0>;
++                cs-gpio = <&porta 24 GPIO_ACTIVE_LOW>;
++                num-chipselects = <1>;
++                status = "okay";
++
++                spidev@0 {
++                        compatible = "spidev";
++                        reg = <0>;
++                };
++        };
++
 +        gpio-keys {
 +                compatible = "gpio-keys";
 +                key-user {
@@ -153,14 +201,14 @@ index 000000000..3a567c791
 +                };
 +        };
 +
-+	leds {
-+		compatible = "gpio-leds";
++        leds {
++                compatible = "gpio-leds";
 +
-+		led-user {
-+			gpios = <&porta 14 GPIO_ACTIVE_HIGH>;
-+			linux,default-trigger = "activity";
-+		};
-+	};
++                led-user {
++                        gpios = <&porta 14 GPIO_ACTIVE_HIGH>;
++                        linux,default-trigger = "activity";
++                };
++        };
 +
 +        wifisd:wifi-sd@4320000 {
 +                compatible = "cvitek,cv181x-sdio";
@@ -2097,10 +2145,10 @@ index 000000000..bb362511c
 +};
 diff --git a/arch/riscv/configs/licheervnano_defconfig b/arch/riscv/configs/licheervnano_defconfig
 new file mode 100644
-index 000000000..235e2acc6
+index 000000000..1c25a33a8
 --- /dev/null
 +++ b/arch/riscv/configs/licheervnano_defconfig
-@@ -0,0 +1,670 @@
+@@ -0,0 +1,680 @@
 +CONFIG_CC_OPTIMIZE_FOR_SIZE=y
 +# CONFIG_SWAP is not set
 +CONFIG_SYSVIPC=y
@@ -2125,7 +2173,7 @@ index 000000000..235e2acc6
 +CONFIG_VECTOR=y
 +CONFIG_VECTOR_0_7=y
 +# CONFIG_COMPAT is not set
-+CONFIG_ARCH_CVITEK_CHIP="mars"
++CONFIG_ARCH_CVITEK_CHIP="cv181x"
 +CONFIG_ARCH_CV181X_ASIC=y
 +CONFIG_POWER_RESET=y
 +CONFIG_COMPAT_32BIT_TIME=y
@@ -2250,6 +2298,14 @@ index 000000000..235e2acc6
 +CONFIG_VIDEO_CVITEK_CIF=m
 +CONFIG_VIDEO_CVITEK_SNS_I2C=m
 +CONFIG_VIDEO_CVITEK_MIPI_TX=m
++
++CONFIG_SPI=y
++CONFIG_SPI_MASTER=y
++CONFIG_SPI_DESIGNWARE=y
++CONFIG_SPI_DW_MMIO=y
++CONFIG_SPI_GPIO=m
++CONFIG_SPI_SPIDEV=y
++
 +#
 +# Media SPI Adapters
 +#
@@ -2463,7 +2519,9 @@ index 000000000..235e2acc6
 +# end of Digital TV options
 +
 +CONFIG_FB=y
-+CONFIG_FB_CVITEK=m
++CONFIG_FB_TFT=y
++CONFIG_FB_TFT_ST7789V=y
++# CONFIG_FB_CVITEK is not set
 +CONFIG_SOUND=y
 +CONFIG_SND=y
 +# CONFIG_SND_SUPPORT_OLD_API is not set
@@ -2782,7 +2840,7 @@ index 6233541e9..e8e227b09 100644
 +obj-y   += hynitron/
 diff --git a/drivers/input/touchscreen/hynitron/Kconfig b/drivers/input/touchscreen/hynitron/Kconfig
 new file mode 100644
-index 000000000..4de05da39
+index 000000000..6784ae050
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/Kconfig
 @@ -0,0 +1,10 @@
@@ -2798,7 +2856,7 @@ index 000000000..4de05da39
 +    
 diff --git a/drivers/input/touchscreen/hynitron/Makefile b/drivers/input/touchscreen/hynitron/Makefile
 new file mode 100644
-index 000000000..3ec8fe474
+index 000000000..f9a7a3515
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/Makefile
 @@ -0,0 +1,16 @@
@@ -2820,7 +2878,7 @@ index 000000000..3ec8fe474
 +obj-y	+= hynitron_proximity.o
 diff --git a/drivers/input/touchscreen/hynitron/docs/hynitron-ts.txt b/drivers/input/touchscreen/hynitron/docs/hynitron-ts.txt
 new file mode 100644
-index 000000000..76f20b965
+index 000000000..61d921886
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/docs/hynitron-ts.txt
 @@ -0,0 +1,37 @@
@@ -2864,7 +2922,7 @@ index 000000000..76f20b965
 \ No newline at end of file
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst0xx_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst0xx_update.h
 new file mode 100644
-index 000000000..baae5ff4e
+index 000000000..0bdb9e639
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst0xx_update.h
 @@ -0,0 +1,856 @@
@@ -3726,7 +3784,7 @@ index 000000000..baae5ff4e
 +#endif /*CAPACITIVE_HYNITRON_CST0XX_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst1xxse_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst1xxse_update.h
 new file mode 100644
-index 000000000..525697930
+index 000000000..ae8f9d6ed
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst1xxse_update.h
 @@ -0,0 +1,495 @@
@@ -4227,7 +4285,7 @@ index 000000000..525697930
 +#endif /*CAPACITIVE_HYNITRON_CST1XXSE_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst2xx_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst2xx_update.h
 new file mode 100644
-index 000000000..eea5042f7
+index 000000000..6fe82dc28
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst2xx_update.h
 @@ -0,0 +1,401 @@
@@ -4634,7 +4692,7 @@ index 000000000..eea5042f7
 +#endif /*CAPACITIVE_HYNITRON_CST2XX_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst2xxse_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst2xxse_update.h
 new file mode 100644
-index 000000000..5e3875c04
+index 000000000..2a7c7875a
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst2xxse_update.h
 @@ -0,0 +1,495 @@
@@ -5135,7 +5193,7 @@ index 000000000..5e3875c04
 +#endif /*CAPACITIVE_HYNITRON_CST2XXSE_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst3240_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst3240_update.h
 new file mode 100644
-index 000000000..ebcb9a67c
+index 000000000..963e5ca35
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst3240_update.h
 @@ -0,0 +1,1038 @@
@@ -6179,7 +6237,7 @@ index 000000000..ebcb9a67c
 +#endif /*CAPACITIVE_HYNITRON_CST1XX_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst3xx_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst3xx_update.h
 new file mode 100644
-index 000000000..81cf46a37
+index 000000000..1f251c33c
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst3xx_update.h
 @@ -0,0 +1,1553 @@
@@ -7738,7 +7796,7 @@ index 000000000..81cf46a37
 +#endif /*CAPACITIVE_HYNITRON_CST1XX_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst3xxse_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst3xxse_update.h
 new file mode 100644
-index 000000000..8bda5f338
+index 000000000..9bac111af
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst3xxse_update.h
 @@ -0,0 +1,495 @@
@@ -8239,7 +8297,7 @@ index 000000000..8bda5f338
 +#endif /*CAPACITIVE_HYNITRON_CST2XXSE_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst6xx_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst6xx_update.h
 new file mode 100644
-index 000000000..8ab1c3d4f
+index 000000000..870e529f2
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst6xx_update.h
 @@ -0,0 +1,1553 @@
@@ -9798,7 +9856,7 @@ index 000000000..8ab1c3d4f
 +#endif /*CAPACITIVE_HYNITRON_CST1XX_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst7xx_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst7xx_update.h
 new file mode 100644
-index 000000000..e788a7f6d
+index 000000000..f0bdb360d
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst7xx_update.h
 @@ -0,0 +1,1008 @@
@@ -10812,7 +10870,7 @@ index 000000000..e788a7f6d
 +#endif /*CAPACITIVE_HYNITRON_CST8XX_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst8xx_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst8xx_update.h
 new file mode 100644
-index 000000000..dcc9074d5
+index 000000000..e95b3292b
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst8xx_update.h
 @@ -0,0 +1,1008 @@
@@ -11826,7 +11884,7 @@ index 000000000..dcc9074d5
 +#endif /*CAPACITIVE_HYNITRON_CST8XX_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst92xx_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst92xx_update.h
 new file mode 100644
-index 000000000..f05af6348
+index 000000000..bbb10031c
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst92xx_update.h
 @@ -0,0 +1,2055 @@
@@ -13887,7 +13945,7 @@ index 000000000..f05af6348
 +#endif /*CAPACITIVE_HYNITRON_CST1XX_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst9xx_update.h b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst9xx_update.h
 new file mode 100644
-index 000000000..bbcc92d1d
+index 000000000..100effacd
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/firmware/capacitive_hynitron_cst9xx_update.h
 @@ -0,0 +1,1553 @@
@@ -15446,7 +15504,7 @@ index 000000000..bbcc92d1d
 +#endif /*CAPACITIVE_HYNITRON_CST1XX_UPDATE_H__*/
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_common.h b/drivers/input/touchscreen/hynitron/hynitron_common.h
 new file mode 100644
-index 000000000..425a6f9b3
+index 000000000..e6d0f4b90
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_common.h
 @@ -0,0 +1,260 @@
@@ -15712,7 +15770,7 @@ index 000000000..425a6f9b3
 +
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_config.h b/drivers/input/touchscreen/hynitron/hynitron_config.h
 new file mode 100644
-index 000000000..0105b55cb
+index 000000000..e31878813
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_config.h
 @@ -0,0 +1,99 @@
@@ -15817,7 +15875,7 @@ index 000000000..0105b55cb
 +
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_core.c b/drivers/input/touchscreen/hynitron/hynitron_core.c
 new file mode 100644
-index 000000000..dfcca6461
+index 000000000..eba4dfa8c
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_core.c
 @@ -0,0 +1,2208 @@
@@ -18031,7 +18089,7 @@ index 000000000..dfcca6461
 +
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_core.h b/drivers/input/touchscreen/hynitron/hynitron_core.h
 new file mode 100644
-index 000000000..522a69bc4
+index 000000000..a2538964a
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_core.h
 @@ -0,0 +1,286 @@
@@ -18323,7 +18381,7 @@ index 000000000..522a69bc4
 +
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_esd_check.c b/drivers/input/touchscreen/hynitron/hynitron_esd_check.c
 new file mode 100644
-index 000000000..6c2f892e7
+index 000000000..2298556a1
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_esd_check.c
 @@ -0,0 +1,343 @@
@@ -18672,7 +18730,7 @@ index 000000000..6c2f892e7
 +MODULE_LICENSE("NOP");
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_gesture.c b/drivers/input/touchscreen/hynitron/hynitron_gesture.c
 new file mode 100644
-index 000000000..83fa0b806
+index 000000000..2a376781b
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_gesture.c
 @@ -0,0 +1,661 @@
@@ -19339,7 +19397,7 @@ index 000000000..83fa0b806
 +MODULE_LICENSE("NOP");
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_i2c.c b/drivers/input/touchscreen/hynitron/hynitron_i2c.c
 new file mode 100644
-index 000000000..13b6fddef
+index 000000000..693a81de0
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_i2c.c
 @@ -0,0 +1,252 @@
@@ -19597,7 +19655,7 @@ index 000000000..13b6fddef
 +MODULE_LICENSE("NOP");
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_proximity.c b/drivers/input/touchscreen/hynitron/hynitron_proximity.c
 new file mode 100644
-index 000000000..5f9aca794
+index 000000000..2ed75bb32
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_proximity.c
 @@ -0,0 +1,542 @@
@@ -20145,7 +20203,7 @@ index 000000000..5f9aca794
 +MODULE_LICENSE("NOP");
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_tool_debug.c b/drivers/input/touchscreen/hynitron/hynitron_tool_debug.c
 new file mode 100644
-index 000000000..aaeb50554
+index 000000000..302dc6114
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_tool_debug.c
 @@ -0,0 +1,2135 @@
@@ -22286,7 +22344,7 @@ index 000000000..aaeb50554
 +MODULE_LICENSE("NOP");
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_update_firmware.c b/drivers/input/touchscreen/hynitron/hynitron_update_firmware.c
 new file mode 100644
-index 000000000..b1af68305
+index 000000000..83561794d
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_update_firmware.c
 @@ -0,0 +1,4069 @@
@@ -26361,7 +26419,7 @@ index 000000000..b1af68305
 +MODULE_LICENSE("NOP");
 diff --git a/drivers/input/touchscreen/hynitron/hynitron_update_firmware.h b/drivers/input/touchscreen/hynitron/hynitron_update_firmware.h
 new file mode 100644
-index 000000000..88ec33493
+index 000000000..19a0814b2
 --- /dev/null
 +++ b/drivers/input/touchscreen/hynitron/hynitron_update_firmware.h
 @@ -0,0 +1,35 @@
@@ -26401,7 +26459,7 @@ index 000000000..88ec33493
 +#endif
 +
 diff --git a/drivers/mmc/host/cvitek/sdhci-cv181x.c b/drivers/mmc/host/cvitek/sdhci-cv181x.c
-index c0d79905d..0a98790bf 100644
+index 8b6eac09c..ccf0d23fb 100644
 --- a/drivers/mmc/host/cvitek/sdhci-cv181x.c
 +++ b/drivers/mmc/host/cvitek/sdhci-cv181x.c
 @@ -318,7 +318,7 @@ static void sdhci_cv181x_sd_setup_pad(struct sdhci_host *host, bool bunplug)
@@ -26414,10 +26472,10 @@ index c0d79905d..0a98790bf 100644
  	writeb(val, cvi_host->pinmuxbase + 0x20);
  	writeb(val, cvi_host->pinmuxbase + 0x24);
 diff --git a/sound/soc/cvitek/cv181xadc.c b/sound/soc/cvitek/cv181xadc.c
-index 91d101b62..51fd19fb9 100644
+index ba90bbc2b..281bde00d 100644
 --- a/sound/soc/cvitek/cv181xadc.c
 +++ b/sound/soc/cvitek/cv181xadc.c
-@@ -445,6 +445,39 @@ static struct cv181xadc *file_adc_dev(struct file *file)
+@@ -451,6 +451,39 @@ static struct cv181xadc *file_adc_dev(struct file *file)
  	return container_of(file->private_data, struct cv181xadc, miscdev);
  }
  
@@ -26457,7 +26515,7 @@ index 91d101b62..51fd19fb9 100644
  
  static long adc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  {
-@@ -473,33 +506,7 @@ static long adc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+@@ -479,33 +512,7 @@ static long adc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  		break;
  
  	case ACODEC_SET_INPUT_VOL:
@@ -26492,7 +26550,7 @@ index 91d101b62..51fd19fb9 100644
  		break;
  
  	case ACODEC_GET_INPUT_VOL:
-@@ -883,6 +890,9 @@ static int cv181xadc_probe(struct platform_device *pdev)
+@@ -889,6 +896,9 @@ static int cv181xadc_probe(struct platform_device *pdev)
  	ctrl1 = adc_read_reg(adc->adc_base, AUDIO_PHY_RXADC_CTRL1);
  	adc_write_reg(adc->adc_base, AUDIO_PHY_RXADC_CTRL1, ctrl1 | AUDIO_ADC_IGR_INIT_EN);
  
@@ -26503,7 +26561,7 @@ index 91d101b62..51fd19fb9 100644
  					  &cv181xadc_dai, 1);
  }
 diff --git a/sound/soc/cvitek/cv181xdac.c b/sound/soc/cvitek/cv181xdac.c
-index 6c8b520cc..d75140dbe 100644
+index 6a0fc1e9c..0a61a61f7 100644
 --- a/sound/soc/cvitek/cv181xdac.c
 +++ b/sound/soc/cvitek/cv181xdac.c
 @@ -311,6 +311,19 @@ static struct cv181xdac *file_dac_dev(struct file *file)
@@ -26526,7 +26584,7 @@ index 6c8b520cc..d75140dbe 100644
  static long dac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  {
  
-@@ -336,16 +349,7 @@ static long dac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+@@ -337,16 +350,7 @@ static long dac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  		break;
  
  	case ACODEC_SET_OUTPUT_VOL:
@@ -26544,7 +26602,7 @@ index 6c8b520cc..d75140dbe 100644
  		break;
  
  	case ACODEC_GET_OUTPUT_VOL:
-@@ -654,6 +658,10 @@ static int cv181xdac_probe(struct platform_device *pdev)
+@@ -660,6 +664,10 @@ static int cv181xdac_probe(struct platform_device *pdev)
  		gpio_direction_output(mute_pin_r, 1);
  		gpio_set_value(mute_pin_r, 0);
  	}
